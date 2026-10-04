@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+  --bg: #f4f5f2;
+  --surface: #fcfcfb;
+  --surface-2: #f0f1ec;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #7a7873;
+  --line: #e1e0d9;
+  --brand: #0f766e;
+  --brand-ink: #ffffff;
+  --brand-soft: #d6f1ec;
+  --good: #006300;
+  --good-mark: #0ca30c;
+  --bad: #c22f2f;
+  --bad-mark: #d03b3b;
+  --warn: #8a5a00;
+  --warn-mark: #fab219;
+  --serious-mark: #ec835a;
+  --income: #2a78d6;
+  --expense: #eb6834;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #242423;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #9a988f;
+  --line: #2c2c2a;
+  --brand: #2dd4bf;
+  --brand-ink: #04211e;
+  --brand-soft: #123b37;
+  --good: #3ccf3c;
+  --good-mark: #0ca30c;
+  --bad: #f07a7a;
+  --bad-mark: #d03b3b;
+  --warn: #fab219;
+  --warn-mark: #fab219;
+  --serious-mark: #ec835a;
+  --income: #3987e5;
+  --expense: #d95926;
+}
+
+@theme inline {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --color-warn: var(--warn);
+  --color-income: var(--income);
+  --color-expense: var(--expense);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: var(--date-icon-filter, none);
+}
+.dark input[type='date'] {
+  --date-icon-filter: invert(1);
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.animate-pop {
+  animation: pop 160ms ease-out;
+}
+
+/* Recharts: sem contorno de foco preto ao clicar */
+.recharts-wrapper *:focus {
+  outline: none;
+}
