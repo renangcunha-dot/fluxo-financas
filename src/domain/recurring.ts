@@ -1,4 +1,4 @@
-import { addMonths, daysInMonth, monthOf, uid } from './format';
+import { addMonths, daysInMonth, monthOf } from './format';
 import type { Recurring, Transaction } from './types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -24,7 +24,8 @@ export function generateDue(
       const day = Math.min(r.day, daysInMonth(month));
       if (month === curMonth && day > todayDay) break;
       transactions.push({
-        id: uid(),
+        // id previsível: dois aparelhos sincronizados geram o mesmo lançamento, sem duplicar
+        id: `rec:${r.id}:${month}`,
         type: r.type,
         amount: r.amount,
         date: `${month}-${pad(day)}`,

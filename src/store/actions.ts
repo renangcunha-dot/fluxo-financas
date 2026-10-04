@@ -3,6 +3,8 @@ import { checkBudget, type ScopeCheck } from '../domain/budget';
 import { DEFAULT_CATEGORIES } from '../domain/defaults';
 import { addMonths, currentMonth, money, monthLabel, monthOf, pct, today, uid } from '../domain/format';
 import { generateDue } from '../domain/recurring';
+import type { ImportItem } from '../domain/statement';
+import { spentInScope } from '../domain/summary';
 import { TOTAL_SCOPE, type Recurring, type Transaction } from '../domain/types';
 import { push } from '../notifications/notify';
 import { askGate, useUI } from './ui';
@@ -18,7 +20,7 @@ async function budgetContext() {
     db.transactions.where('type').equals('expense').toArray(),
     db.budgets.toArray(),
     db.blocks.toArray(),
-    db.overrides.toArray(),
+    db.decisions.toArray(),
   ]);
   return { transactions, budgets, blocks, overrides };
 }
@@ -52,10 +54,10 @@ export async function saveTransaction(tx: Transaction, recurring?: Recurring): P
   if (check.status === 'blocked') {
     const answer = await askGate({ kind: 'blocked', tx, scopes: check.blockedScopes });
     if (answer.choice !== 'unblock') return 'cancelled';
-    await db.transaction('rw', db.blocks, db.overrides, async () => {
+    await db.transaction('rw', db.blocks, db.decisions, async () => {
       for (const scope of check.status === 'blocked' ? check.blockedScopes : []) {
         await db.blocks.delete(`${month}:${scope}`);
-        await db.overrides.add({ month, scope, kind: 'unblock', reason: answer.reason, amount: tx.amount, description: tx.description, createdAt: Date.now() });
+        await db.decisions.add({ id: uid(), month, scope, kind: 'unblock', reason: answer.reason, amount: tx.amount, description: tx.description, createdAt: Date.now() });
       }
     });
     check = checkBudget(tx, await budgetContext());
@@ -80,8 +82,8 @@ export async function saveTransaction(tx: Transaction, recurring?: Recurring): P
       return 'blocked';
     }
     if (answer.choice === 'continue') {
-      await db.overrides.bulkAdd(
-        check.exceeded.map((s) => ({ month, scope: s.scope, kind: 'continue' as const, reason: answer.reason, amount: tx.amount, description: tx.description, createdAt: Date.now() })),
+      await db.decisions.bulkAdd(
+        check.exceeded.map((s) => ({ id: uid(), month, scope: s.scope, kind: 'continue' as const, reason: answer.reason, amount: tx.amount, description: tx.description, createdAt: Date.now() })),
       );
     }
   }
@@ -101,9 +103,9 @@ export async function deleteTransaction(id: string) {
 }
 
 export async function unblock(month: string, scope: string, reason: string) {
-  await db.transaction('rw', db.blocks, db.overrides, async () => {
+  await db.transaction('rw', db.blocks, db.decisions, async () => {
     await db.blocks.delete(`${month}:${scope}`);
-    await db.overrides.add({ month, scope, kind: 'unblock', reason, amount: 0, description: '', createdAt: Date.now() });
+    await db.decisions.add({ id: uid(), month, scope, kind: 'unblock', reason, amount: 0, description: '', createdAt: Date.now() });
   });
 }
 
@@ -134,10 +136,14 @@ export async function exportJSON() {
 export async function importJSON(file: File) {
   const parsed = JSON.parse(await file.text());
   if (parsed?.app !== 'fluxo' || !parsed.data) throw new Error('Arquivo não é um backup do Fluxo.');
+  const data = { ...parsed.data } as Record<string, Record<string, unknown>[]>;
+  // Backups da versão 1 guardavam as decisões em "overrides" com id numérico.
+  if (data.overrides && !data.decisions) data.decisions = data.overrides.map((o) => ({ ...o, id: uid() }));
   await db.transaction('rw', TABLES.map((t) => db.table(t)), async () => {
     for (const t of TABLES) {
-      await db.table(t).clear();
-      if (Array.isArray(parsed.data[t])) await db.table(t).bulkAdd(parsed.data[t]);
+      // delete() (e não clear()) para a exclusão também sincronizar com outros aparelhos
+      await db.table(t).toCollection().delete();
+      if (Array.isArray(data[t])) await db.table(t).bulkPut(data[t].map(({ updatedAt: _u, ...r }) => r));
     }
   });
 }
@@ -164,8 +170,8 @@ function download(name: string, content: string, type: string) {
 
 export async function wipeAll() {
   await db.transaction('rw', TABLES.map((t) => db.table(t)), async () => {
-    for (const t of TABLES) await db.table(t).clear();
-    await db.categories.bulkAdd(DEFAULT_CATEGORIES);
+    for (const t of TABLES) await db.table(t).toCollection().delete();
+    await db.categories.bulkAdd(DEFAULT_CATEGORIES.map((c) => ({ ...c })));
   });
 }
 
@@ -223,4 +229,43 @@ export async function loadDemo() {
     ]);
   });
   useUI.getState().toast('Dados de exemplo carregados — explore à vontade!', 'good');
+}
+
+// ---------- Importação de extrato ----------
+
+/**
+ * Grava os itens escolhidos na prévia. Extrato é gasto que já aconteceu, então não passa pelo
+ * freio — mas avisa (toast + push) se a importação levou algum limite a estourar.
+ */
+export async function importStatementItems(items: ImportItem[]) {
+  const now = Date.now();
+  const txs: Transaction[] = items.map((i) => ({
+    id: uid(),
+    type: i.type,
+    amount: i.amount,
+    date: i.date,
+    categoryId: i.categoryId,
+    description: i.description,
+    importKey: i.key,
+    createdAt: now,
+  }));
+  await db.transactions.bulkAdd(txs);
+
+  const { toast } = useUI.getState();
+  toast(`${txs.length} lançamento(s) importado(s)`, 'good');
+
+  const all = await db.transactions.where('type').equals('expense').toArray();
+  const budgets = await db.budgets.toArray();
+  const months = [...new Set(txs.filter((t) => t.type === 'expense').map((t) => monthOf(t.date)))];
+  for (const month of months) {
+    for (const b of budgets) {
+      const spent = spentInScope(all, month, b.scope);
+      if (b.amount > 0 && spent >= b.amount) {
+        const name = await scopeName(b.scope);
+        const text = `Com o extrato, ${name} em ${monthLabel(month)} chegou a ${money(spent)} (limite ${money(b.amount)}).`;
+        toast(`🚦 ${text}`, 'warn');
+        push('🚦 Limite atingido pela importação', text, { tag: `import:${month}:${b.scope}` });
+      }
+    }
+  }
 }

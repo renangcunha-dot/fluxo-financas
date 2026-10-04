@@ -22,7 +22,7 @@ export function useData(): AppData {
   const categories = useLiveQuery(() => db.categories.toArray(), []);
   const budgets = useLiveQuery(() => db.budgets.toArray(), []);
   const blocks = useLiveQuery(() => db.blocks.toArray(), []);
-  const overrides = useLiveQuery(() => db.overrides.orderBy('id').reverse().toArray(), []);
+  const overrides = useLiveQuery(() => db.decisions.toArray().then((d) => d.sort((a, b) => b.createdAt - a.createdAt)), []);
   const recurrings = useLiveQuery(() => db.recurrings.toArray(), []);
   const catMap = useMemo(() => new Map((categories ?? []).map((c) => [c.id, c])), [categories]);
 

@@ -34,7 +34,7 @@ export function Button({ variant = 'soft', className = '', ...props }: ButtonHTM
   );
 }
 
-export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; wide?: boolean }) {
+export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; wide?: boolean | 'xl' }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -44,7 +44,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[2px] sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" className={`animate-pop max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-3xl ${wide ? 'sm:max-w-xl' : 'sm:max-w-md'}`}>
+      <div role="dialog" aria-modal="true" className={`animate-pop max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-3xl ${wide === 'xl' ? 'sm:max-w-4xl' : wide ? 'sm:max-w-xl' : 'sm:max-w-md'}`}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <h2 className="text-lg font-bold">{title}</h2>
           <button onClick={onClose} aria-label="Fechar" className="-m-1 rounded-lg p-1 text-muted hover:bg-surface-2">✕</button>

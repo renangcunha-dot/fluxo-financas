@@ -28,6 +28,8 @@ interface UIState {
   theme: Theme;
   quickAdd: { open: boolean; editing?: Transaction; presetType?: TxType };
   gate: (GateRequest & { resolve: (a: GateAnswer) => void }) | null;
+  importOpen: boolean;
+  setImportOpen: (open: boolean) => void;
   toasts: Toast[];
   setPage: (p: Page) => void;
   setMonth: (m: string) => void;
@@ -54,6 +56,8 @@ export const useUI = create<UIState>((set) => ({
   theme: readTheme(),
   quickAdd: { open: false },
   gate: null,
+  importOpen: false,
+  setImportOpen: (importOpen) => set({ importOpen }),
   toasts: [],
   setPage: (page) => set({ page }),
   setMonth: (month) => set({ month }),

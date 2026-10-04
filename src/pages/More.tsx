@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { SyncCard } from '../components/SyncCard';
 import { Button, Card, inputCls, Segmented } from '../components/ui';
 import { db } from '../db/schema';
 import { money, parseAmount, uid } from '../domain/format';
@@ -10,7 +11,7 @@ import { useUI, type Theme } from '../store/ui';
 const PALETTE = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948', '#898781'];
 
 export function More({ data }: { data: AppData }) {
-  const { theme, setTheme, toast } = useUI();
+  const { theme, setTheme, toast, setImportOpen } = useUI();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const onImport = async (f?: File) => {
@@ -30,6 +31,7 @@ export function More({ data }: { data: AppData }) {
         <Categories data={data} />
       </div>
       <div className="space-y-4">
+        <SyncCard />
         <Recurrings data={data} />
 
         <Card title="Aparência">
@@ -37,12 +39,13 @@ export function More({ data }: { data: AppData }) {
         </Card>
 
         <Card title="Seus dados">
-          <p className="mb-3 text-sm text-ink-2">🔐 Tudo fica salvo só neste aparelho. Faça backup de vez em quando.</p>
+          <p className="mb-3 text-sm text-ink-2">🔐 Sem login, tudo fica só neste aparelho. Com a sincronização ligada, fica também na sua conta, visível só para você.</p>
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={exportJSON}>⬇️ Backup (JSON)</Button>
             <Button onClick={() => fileRef.current?.click()}>⬆️ Restaurar</Button>
             <Button onClick={exportCSV}>📄 Exportar CSV</Button>
             <Button onClick={loadDemo}>🧪 Dados de exemplo</Button>
+            <Button className="col-span-2" onClick={() => setImportOpen(true)}>📥 Importar extrato do banco (OFX/CSV)</Button>
           </div>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => { onImport(e.target.files?.[0]); e.target.value = ''; }} />
           <Button

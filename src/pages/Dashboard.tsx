@@ -13,7 +13,7 @@ import { useUI } from '../store/ui';
 const rel = (cur: number, prev: number) => (prev ? (cur - prev) / Math.abs(prev) : null);
 
 export function Dashboard({ data }: { data: AppData }) {
-  const { month, setMonth, setPage, openQuickAdd } = useUI();
+  const { month, setMonth, setPage, openQuickAdd, setImportOpen } = useUI();
 
   const view = useMemo(() => {
     const cur = inMonth(data.transactions, month);
@@ -47,10 +47,11 @@ export function Dashboard({ data }: { data: AppData }) {
       <Card className="mx-auto max-w-lg py-10 text-center">
         <div className="text-5xl">🌱</div>
         <h2 className="mt-3 text-xl font-bold">Vamos organizar seu dinheiro</h2>
-        <p className="mt-2 text-ink-2">Lance sua primeira receita ou despesa — ou carregue 6 meses de exemplo para explorar o app.</p>
+        <p className="mt-2 text-ink-2">Lance sua primeira receita ou despesa, importe o extrato do seu banco — ou carregue 6 meses de exemplo para explorar o app.</p>
         <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
           <Button variant="primary" onClick={() => openQuickAdd()}>+ Primeiro lançamento</Button>
-          <Button onClick={loadDemo}>Ver com dados de exemplo</Button>
+          <Button onClick={() => setImportOpen(true)}>📥 Importar extrato</Button>
+          <Button variant="ghost" onClick={loadDemo}>Ver com dados de exemplo</Button>
         </div>
       </Card>
     );

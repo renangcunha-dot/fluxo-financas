@@ -80,7 +80,7 @@ describe('checkBudget', () => {
   });
 
   it('não pergunta de novo depois de "continuar" no mesmo mês', () => {
-    const overrides = [{ month: '2026-10', scope: 'total', kind: 'continue' as const, reason: 'x', amount: 1, description: '', createdAt: 0 }];
+    const overrides = [{ id: 'o1', month: '2026-10', scope: 'total', kind: 'continue' as const, reason: 'x', amount: 1, description: '', createdAt: 0 }];
     const r = checkBudget(tx({ amount: 10000 }), ctx({ budgets, overrides, transactions: [tx({ amount: 60000 })] }));
     expect(r.status).toBe('ok');
   });

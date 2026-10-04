@@ -1,7 +1,12 @@
 export type TxType = 'expense' | 'income';
 
+/** Carimbo da última alteração (ms), preenchido pelo banco — usado na sincronização. */
+export interface Stamped {
+  updatedAt?: number;
+}
+
 /** Valores monetários são sempre inteiros em centavos. */
-export interface Category {
+export interface Category extends Stamped {
   id: string;
   name: string;
   type: TxType;
@@ -10,7 +15,7 @@ export interface Category {
   archived?: boolean;
 }
 
-export interface Transaction {
+export interface Transaction extends Stamped {
   id: string;
   type: TxType;
   amount: number;
@@ -19,10 +24,12 @@ export interface Transaction {
   categoryId: string;
   description: string;
   recurringId?: string;
+  /** Chave do extrato importado (FITID ou hash) — evita importar duas vezes. */
+  importKey?: string;
   createdAt: number;
 }
 
-export interface Recurring {
+export interface Recurring extends Stamped {
   id: string;
   type: TxType;
   amount: number;
@@ -40,20 +47,20 @@ export interface Recurring {
 /** Escopo de um limite: 'total' (todas as despesas) ou o id de uma categoria. */
 export type BudgetScope = string;
 
-export interface Budget {
+export interface Budget extends Stamped {
   scope: BudgetScope;
   amount: number;
 }
 
-export interface Block {
+export interface Block extends Stamped {
   id: string; // `${month}:${scope}`
   month: string;
   scope: BudgetScope;
   createdAt: number;
 }
 
-export interface Override {
-  id?: number;
+export interface Override extends Stamped {
+  id: string;
   month: string;
   scope: BudgetScope;
   kind: 'continue' | 'unblock';

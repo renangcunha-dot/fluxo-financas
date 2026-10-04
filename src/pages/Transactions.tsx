@@ -10,7 +10,7 @@ import { useUI } from '../store/ui';
 type Filter = 'all' | 'expense' | 'income';
 
 export function Transactions({ data }: { data: AppData }) {
-  const { month, openQuickAdd } = useUI();
+  const { month, openQuickAdd, setImportOpen } = useUI();
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
@@ -47,15 +47,16 @@ export function Transactions({ data }: { data: AppData }) {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-2">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-ink-2">
         <span>{list.length} lançamento(s)</span>
         <span>Receitas <b className="tabular text-good">{money(sum.income)}</b></span>
         <span>Despesas <b className="tabular text-bad">{money(sum.expense)}</b></span>
         <span>Saldo <b className={`tabular ${sum.balance >= 0 ? 'text-good' : 'text-bad'}`}>{money(sum.balance)}</b></span>
+        <button onClick={() => setImportOpen(true)} className="ml-auto rounded-xl border border-line px-3 py-1.5 font-semibold text-ink hover:bg-surface-2">📥 Importar extrato</button>
       </div>
 
       {groups.length === 0 ? (
-        <Card><p className="py-6 text-center text-muted">Nada por aqui. Toque em <b>+</b> para lançar.</p></Card>
+        <Card><p className="py-6 text-center text-muted">Nada por aqui. Toque em <b>+</b> para lançar ou <button className="font-semibold text-brand" onClick={() => setImportOpen(true)}>importe o extrato do banco</button>.</p></Card>
       ) : (
         groups.map(([date, txs]) => {
           const day = totals(txs);

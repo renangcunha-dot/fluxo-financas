@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
 import { BudgetGate } from './components/BudgetGate';
+import { ImportStatement } from './components/ImportStatement';
+import { SyncBadge } from './components/SyncCard';
+import { startSync, syncConfigured, useSync } from './sync/manager';
 import { QuickAdd } from './components/QuickAdd';
 import { MonthPicker } from './components/ui';
 import { useData } from './hooks/useData';
@@ -32,6 +35,7 @@ function useTheme() {
 export default function App() {
   const data = useData();
   const { page, setPage, openQuickAdd, toasts, dismissToast } = useUI();
+  const syncEmail = useSync((s) => s.email);
   useTheme();
 
   useEffect(() => {
@@ -42,7 +46,9 @@ export default function App() {
       if (action === 'block') gate.resolve({ choice: 'block' });
       if (action === 'continue') gate.resolve({ choice: 'continue', reason: 'Confirmado pela notificação' });
     });
-    runRecurring();
+    // Sincroniza antes de lançar recorrências, para não recriar o que outro aparelho já lançou ou apagou.
+    const timeout = new Promise((r) => setTimeout(r, 6000));
+    Promise.race([startSync(), timeout]).catch(() => {}).finally(runRecurring);
     const id = setInterval(runRecurring, 60 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
@@ -84,7 +90,7 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <p className="mt-auto px-2 text-xs text-muted">🔐 Seus dados ficam só neste aparelho.</p>
+        <p className="mt-auto px-2 text-xs text-muted">{syncEmail ? `☁️ Sincronizado com ${syncEmail}` : syncConfigured ? '🔐 Dados só neste aparelho. Entre em “Mais” para sincronizar.' : '🔐 Seus dados ficam só neste aparelho.'}</p>
       </aside>
 
       <div className="min-w-0 flex-1">
@@ -94,7 +100,10 @@ export default function App() {
               <img src="/icon.svg" alt="" className="size-7 lg:hidden" />
               {title}
             </h1>
-            {page !== 'more' && <MonthPicker />}
+            <div className="flex items-center gap-1">
+              {page !== 'more' && <MonthPicker />}
+              <SyncBadge />
+            </div>
           </div>
         </header>
 
@@ -124,6 +133,7 @@ export default function App() {
 
       <QuickAdd data={data} />
       <BudgetGate data={data} />
+      <ImportStatement data={data} />
 
       <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex flex-col items-center gap-2 px-4 lg:bottom-6" aria-live="polite">
         {toasts.map((t) => (
