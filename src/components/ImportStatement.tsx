@@ -11,10 +11,12 @@ import {
   type ImportStatus,
   type ParsedStatement,
 } from '../domain/statement';
+import { groupLines, parsePdfLines } from '../domain/pdfStatement';
 import type { AppData } from '../hooks/useData';
+import { extractPdfItems, PdfNoTextError, PdfPasswordError } from '../import/pdfText';
 import { importStatementItems } from '../store/actions';
 import { useUI } from '../store/ui';
-import { Button, Modal, Segmented } from './ui';
+import { Button, inputCls, Modal, Segmented } from './ui';
 
 const STATUS: Record<ImportStatus, { label: string; cls: string }> = {
   new: { label: 'Novo', cls: 'bg-brand-soft text-ink' },
@@ -38,6 +40,9 @@ export function ImportStatement({ data }: { data: AppData }) {
   const [showMapping, setShowMapping] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [locked, setLocked] = useState<{ file: File; wrong: boolean } | null>(null);
+  const [password, setPassword] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
@@ -47,6 +52,8 @@ export function ImportStatement({ data }: { data: AppData }) {
     setFileName('');
     setFilter('all');
     setShowMapping(false);
+    setLocked(null);
+    setPassword('');
   };
   const close = () => {
     reset();
@@ -60,16 +67,30 @@ export function ImportStatement({ data }: { data: AppData }) {
     setTouched(new Set());
   };
 
-  const onFile = async (file?: File) => {
+  const onFile = async (file?: File, pdfPassword?: string) => {
     if (!file) return;
+    const isPdf = /.pdf$/i.test(file.name) || file.type === 'application/pdf';
+    setReading(true);
     try {
-      const text = decodeStatement(await file.arrayBuffer());
-      const p = parseStatement(text, file.name);
+      const buf = await file.arrayBuffer();
+      let p: ParsedStatement;
+      if (isPdf) {
+        p = parsePdfLines(groupLines(await extractPdfItems(buf, pdfPassword)));
+        setLocked(null);
+        setPassword('');
+      } else p = parseStatement(decodeStatement(buf), file.name);
       setFileName(file.name);
       preview(p, p.creditCard);
-      if (!p.rows.length) setShowMapping(p.format === 'csv');
-    } catch {
-      toast('Não consegui ler esse arquivo. Use OFX ou CSV exportado pelo banco.', 'bad');
+      if (!p.rows.length) {
+        setShowMapping(p.format === 'csv');
+        if (p.format === 'pdf') toast('Não encontrei lançamentos neste PDF. Se puder, use OFX ou CSV.', 'bad');
+      }
+    } catch (e) {
+      if (e instanceof PdfPasswordError) setLocked({ file, wrong: e.incorrect });
+      else if (e instanceof PdfNoTextError) toast('Este PDF parece escaneado (só imagem, sem texto). Baixe o extrato em PDF pelo app/site do banco, ou em OFX/CSV.', 'bad');
+      else toast('Não consegui ler esse arquivo. Use OFX, CSV ou PDF exportado pelo banco.', 'bad');
+    } finally {
+      setReading(false);
     }
   };
 
@@ -116,7 +137,24 @@ export function ImportStatement({ data }: { data: AppData }) {
 
   return (
     <Modal open={importOpen} onClose={close} title="Importar extrato" wide="xl">
-      {!parsed ? (
+      {locked ? (
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onFile(locked.file, password);
+          }}
+        >
+          <p className="text-sm">🔒 <b>{locked.file.name}</b> está protegido por senha. Muitos bancos usam parte do CPF (por exemplo, os 5 ou 6 primeiros dígitos).</p>
+          <input type="password" autoFocus value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Senha do PDF" className={inputCls} aria-label="Senha do PDF" />
+          {locked.wrong && <p className="text-sm text-bad">Senha incorreta. Tente de novo.</p>}
+          <p className="text-xs text-muted">A senha é usada só para abrir o arquivo neste aparelho e não fica salva.</p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={reset}>Cancelar</Button>
+            <Button variant="primary" disabled={!password || reading}>{reading ? 'Abrindo…' : 'Abrir PDF'}</Button>
+          </div>
+        </form>
+      ) : !parsed ? (
         <div className="space-y-4">
           <button
             type="button"
@@ -133,11 +171,11 @@ export function ImportStatement({ data }: { data: AppData }) {
             }}
             className={`flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-10 text-center transition ${dragging ? 'border-brand bg-brand-soft' : 'border-line hover:bg-surface-2'}`}
           >
-            <span className="text-4xl">📥</span>
-            <span className="font-semibold">Arraste o arquivo aqui ou toque para escolher</span>
-            <span className="text-sm text-ink-2">OFX ou CSV do extrato da conta ou da fatura do cartão</span>
+            <span className="text-4xl">{reading ? '⏳' : '📥'}</span>
+            <span className="font-semibold">{reading ? 'Lendo o arquivo…' : 'Arraste o arquivo aqui ou toque para escolher'}</span>
+            <span className="text-sm text-ink-2">OFX, CSV ou PDF do extrato da conta ou da fatura do cartão</span>
           </button>
-          <input ref={fileRef} type="file" accept=".ofx,.qfx,.csv,.txt,text/csv" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
+          <input ref={fileRef} type="file" accept=".ofx,.qfx,.csv,.txt,.pdf,text/csv,application/pdf" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ''; }} />
           <details className="rounded-xl bg-surface-2 p-3 text-sm text-ink-2">
             <summary className="cursor-pointer font-semibold text-ink">Como exportar o extrato do meu banco?</summary>
             <ul className="mt-2 list-disc space-y-1 pl-5">
@@ -146,6 +184,7 @@ export function ImportStatement({ data }: { data: AppData }) {
               <li><b>Banco do Brasil, Caixa:</b> Extrato → Exportar/Salvar → <b>OFX</b> (ou CSV).</li>
               <li><b>Inter, C6 e outros:</b> Extrato → Exportar → <b>OFX</b> ou <b>CSV</b>.</li>
             </ul>
+            <p className="mt-2"><b>PDF também funciona</b>, mas OFX/CSV são mais precisos: no PDF, confira os valores na prévia antes de importar. PDF escaneado (foto) não é aceito.</p>
             <p className="mt-2">O arquivo é lido só neste aparelho — nada é enviado para lugar nenhum.</p>
           </details>
         </div>
@@ -169,6 +208,10 @@ export function ImportStatement({ data }: { data: AppData }) {
               </button>
             )}
           </div>
+
+          {parsed.format === 'pdf' && items.length > 0 && (
+            <p className="rounded-xl bg-[var(--warn-mark)]/15 px-3 py-2 text-sm">📄 Lido de PDF: confira datas, valores e se entrada/saída estão certas antes de importar. Desmarque o que não for lançamento.</p>
+          )}
 
           {showMapping && parsed.csv && <MappingEditor table={parsed.csv.table} mapping={parsed.csv.mapping} onChange={remap} />}
 

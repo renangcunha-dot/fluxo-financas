@@ -14,11 +14,12 @@ O app funciona offline. Os dados ficam no seu dispositivo (IndexedDB) e, se voc�
   - Desbloquear também exige um motivo, e todas as decisões ficam em um histórico.
 - **Previsão de fechamento:** quanto você ainda pode gastar por dia, combinando o ritmo atual com o seu histórico.
 - **Lançamento rápido:** digite `uber 32` ou `+salário 5000`. A categoria é sugerida a partir do seu histórico.
-- **Importação de extrato OFX/CSV:** funciona com Nubank (conta e fatura), Itaú, Bradesco, Santander, BB, Caixa, Inter, C6 e outros.
+- **Importação de extrato OFX, CSV ou PDF:** funciona com Nubank (conta e fatura), Itaú, Bradesco, Santander, BB, Caixa, Inter, C6 e outros.
   - Mostra uma prévia antes de importar e sugere a categoria de cada lançamento.
   - Identifica o que já foi importado e lançamentos que parecem duplicados.
   - Deixa de fora, por padrão, os pagamentos de fatura.
   - Ao mudar a categoria de um lançamento, aplica a mesma categoria aos iguais.
+  - PDF: é lido no aparelho (pdf.js), aceita arquivos com senha e mostra a prévia para conferência. PDF escaneado não é aceito. OFX/CSV continuam mais precisos.
 - **Sincronização:** celular e computador ficam iguais em tempo real e o app continua funcionando sem internet.
   - Em caso de conflito, vale a alteração mais recente.
   - Cada usuário só vê os próprios dados (RLS).

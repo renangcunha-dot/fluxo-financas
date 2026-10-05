@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { CacheFirst } from 'workbox-strategies';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -9,6 +10,9 @@ cleanupOutdatedCaches();
 if (import.meta.env.PROD) {
   registerRoute(new NavigationRoute(createHandlerBoundToURL('index.html')));
 }
+
+// Worker do pdf.js (grande): baixa só no primeiro PDF importado e depois funciona offline.
+registerRoute(({ url }) => url.pathname.startsWith('/assets/pdf.worker') && url.pathname.endsWith('.mjs'), new CacheFirst({ cacheName: 'pdf-worker' }));
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));

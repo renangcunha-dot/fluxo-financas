@@ -22,7 +22,7 @@ export interface CsvMapping {
 }
 
 export interface ParsedStatement {
-  format: 'ofx' | 'csv';
+  format: 'ofx' | 'csv' | 'pdf';
   bank?: string;
   rows: StatementRow[];
   /** Fatura de cartão: compras vêm positivas e devem virar despesas. */
@@ -305,6 +305,8 @@ export function buildPreview(
     let status: ImportStatus = 'new';
     if (keys.has(key)) status = 'duplicate';
     else if (CARD_PAYMENT.test(normalize(r.description))) status = 'card-payment';
+    // Na fatura, crédito "Pagamento em 15 SET" / "Pgto ..." é o pagamento da própria fatura.
+    else if (creditCard && type === 'income' && /^(pagamento|pgto|pag)(\s|$)/.test(normalize(r.description))) status = 'card-payment';
     else if (loose.has(`${r.date}|${type}|${amount}`)) status = 'maybe-duplicate';
 
     const categoryId = suggestCategory(r.description, type, history, categories) ?? FALLBACK_CATEGORY[type];
